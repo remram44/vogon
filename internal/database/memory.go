@@ -20,68 +20,74 @@ func NewInMemoryDatabase() *InMemoryDatabase {
 	}
 }
 
-func (db *InMemoryDatabase) Create(object Object, replace bool) error {
+func (db *InMemoryDatabase) Create(object Object, replace bool) (MetadataResponse, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	previous, exists := db.objects[object.metadata.name]
+	previous, exists := db.objects[object.Metadata.Name]
 	if exists {
 		if !replace {
-			return &Conflict{
-				s: fmt.Sprintf("Object %s already exists, cannot create", object.metadata.name),
+			return MetadataResponse{}, &Conflict{
+				s: fmt.Sprintf("Object %s already exists, cannot create", object.Metadata.Name),
 			}
 		}
-		object.metadata.creationTime = previous.metadata.creationTime
-		object.metadata.id = previous.metadata.id
-		object.metadata.revision = RandomString()
+		object.Metadata.CreationTime = previous.Metadata.CreationTime
+		object.Metadata.Id = previous.Metadata.Id
+		object.Metadata.Revision = RandomString()
 	} else {
-		object.metadata.creationTime = time.Now()
-		object.metadata.id = RandomString()
-		object.metadata.revision = RandomString()
+		object.Metadata.CreationTime = time.Now()
+		object.Metadata.Id = RandomString()
+		object.Metadata.Revision = RandomString()
 	}
 
-	db.objects[object.metadata.name] = object
+	db.objects[object.Metadata.Name] = object
 
-	return nil
+	return MetadataResponse{
+		Id:       object.Metadata.Id,
+		Revision: object.Metadata.Revision,
+	}, nil
 }
 
-func (db *InMemoryDatabase) Update(object Object) error {
+func (db *InMemoryDatabase) Update(object Object) (MetadataResponse, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	previous, exists := db.objects[object.metadata.name]
+	previous, exists := db.objects[object.Metadata.Name]
 	if !exists {
-		return &DoesNotExist{
-			s: fmt.Sprintf("Object %s does not exist, cannot update", object.metadata.name),
+		return MetadataResponse{}, &DoesNotExist{
+			s: fmt.Sprintf("Object %s does not exist, cannot update", object.Metadata.Name),
 		}
 	}
 
-	if object.metadata.id != "" {
-		if previous.metadata.id != object.metadata.id {
-			return &Conflict{
-				s: fmt.Sprintf("Object %s does not have the expected id, cannot update", object.metadata.name),
+	if object.Metadata.Id != "" {
+		if previous.Metadata.Id != object.Metadata.Id {
+			return MetadataResponse{}, &Conflict{
+				s: fmt.Sprintf("Object %s does not have the expected id, cannot update", object.Metadata.Name),
 			}
 		}
 	}
 
-	if object.metadata.revision != "" {
-		if object.metadata.id == "" {
-			return errors.New("Cannot update with a previous revision but no previous id")
+	if object.Metadata.Revision != "" {
+		if object.Metadata.Id == "" {
+			return MetadataResponse{}, errors.New("Cannot update with a previous revision but no previous id")
 		}
-		if previous.metadata.revision != object.metadata.revision {
-			return &Conflict{
-				s: fmt.Sprintf("Object %s does not have the expected revision, cannot update", object.metadata.name),
+		if previous.Metadata.Revision != object.Metadata.Revision {
+			return MetadataResponse{}, &Conflict{
+				s: fmt.Sprintf("Object %s does not have the expected revision, cannot update", object.Metadata.Name),
 			}
 		}
 	}
 
-	object.metadata.creationTime = previous.metadata.creationTime
-	object.metadata.id = previous.metadata.id
-	object.metadata.revision = RandomString()
+	object.Metadata.CreationTime = previous.Metadata.CreationTime
+	object.Metadata.Id = previous.Metadata.Id
+	object.Metadata.Revision = RandomString()
 
-	db.objects[object.metadata.name] = object
+	db.objects[object.Metadata.Name] = object
 
-	return nil
+	return MetadataResponse{
+		Id:       object.Metadata.Id,
+		Revision: object.Metadata.Revision,
+	}, nil
 }
 
 func (db *InMemoryDatabase) Get(name string) (Object, error) {
@@ -98,20 +104,20 @@ func (db *InMemoryDatabase) Get(name string) (Object, error) {
 	return object, nil
 }
 
-func (db *InMemoryDatabase) Delete(name string, id string, revision string) error {
+func (db *InMemoryDatabase) Delete(name string, id string, revision string) (MetadataResponse, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
 	previous, exists := db.objects[name]
 	if !exists {
-		return &DoesNotExist{
+		return MetadataResponse{}, &DoesNotExist{
 			s: fmt.Sprintf("Object %s does not exist", name),
 		}
 	}
 
 	if id != "" {
-		if previous.metadata.id != id {
-			return &Conflict{
+		if previous.Metadata.Id != id {
+			return MetadataResponse{}, &Conflict{
 				s: fmt.Sprintf("Object %s does not have the expected id, cannot delete", name),
 			}
 		}
@@ -119,10 +125,10 @@ func (db *InMemoryDatabase) Delete(name string, id string, revision string) erro
 
 	if revision != "" {
 		if id == "" {
-			return errors.New("Cannot delete with a previous revision but no previous id")
+			return MetadataResponse{}, errors.New("Cannot delete with a previous revision but no previous id")
 		}
-		if previous.metadata.revision != revision {
-			return &Conflict{
+		if previous.Metadata.Revision != revision {
+			return MetadataResponse{}, &Conflict{
 				s: fmt.Sprintf("Object %s does not have the expected revision, cannot delete", name),
 			}
 		}
@@ -130,7 +136,10 @@ func (db *InMemoryDatabase) Delete(name string, id string, revision string) erro
 
 	delete(db.objects, name)
 
-	return nil
+	return MetadataResponse{
+		Id:       previous.Metadata.Id,
+		Revision: previous.Metadata.Revision,
+	}, nil
 }
 
 func RandomString() string {

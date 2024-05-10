@@ -17,8 +17,8 @@ import (
 func transmute(name string, source interface{}, dest interface{}) error {
 	metadata := mapstructure.Metadata{}
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result: &dest,
-		TagName: "yaml",
+		Result:   &dest,
+		TagName:  "yaml",
 		Metadata: &metadata,
 	})
 	if err != nil {
@@ -131,13 +131,10 @@ func Run(args []string) {
 		log.Fatalf("parsing config file: %v", err)
 	}
 
-	db, err := config.Database.Connect()
+	err = runServer(config)
 	if err != nil {
-		log.Fatalf("connecting to database: %v", err)
+		log.Fatal(err)
 	}
-
-	// TODO
-	_ = db
 }
 
 func init() {
