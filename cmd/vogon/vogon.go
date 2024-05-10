@@ -5,6 +5,7 @@ import (
 	"os"
 
 	_ "github.com/remram44/vogon/internal/apiserver"
+	_ "github.com/remram44/vogon/internal/client"
 	"github.com/remram44/vogon/internal/commands"
 )
 
