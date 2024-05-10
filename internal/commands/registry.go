@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 )
 
 type Command struct {
@@ -23,8 +24,14 @@ func Register(name string, command *Command) {
 }
 
 func PrintUsage(w io.Writer) {
-	fmt.Fprint(w, "Usage:\n")
+	keys := make([]string, 0, len(registry))
 	for name := range registry {
+		keys = append(keys, name)
+	}
+	slices.Sort(keys)
+
+	fmt.Fprint(w, "Usage:\n")
+	for _, name := range keys {
 		registry[name].PrintUsage(w)
 	}
 }
