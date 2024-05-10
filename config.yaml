@@ -1,0 +1,3 @@
+listen_port: 7090
+database:
+  type: in_memory
