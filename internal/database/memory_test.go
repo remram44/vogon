@@ -31,10 +31,10 @@ func TestCreate(t *testing.T) {
 			t.Fatalf("%#v", err)
 		}
 
-		if len(db.objects) != 1 {
+		if len(db.store.(*inMemoryKv).objects) != 1 {
 			t.Fatal("invalid objects in database")
 		}
-		object, exists := db.objects["one"]
+		object, exists := db.store.(*inMemoryKv).objects["one"]
 		if !exists {
 			t.Fatal("object not in database")
 		}
@@ -77,7 +77,7 @@ func TestCreateReplace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}
-	previous, exists := db.objects["one"]
+	previous, exists := db.store.(*inMemoryKv).objects["one"]
 	if !exists {
 		t.Fatal("object not in database")
 	}
@@ -172,8 +172,8 @@ func TestCreateReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal("replace with correct id and revision didn't work")
 	}
-	if db.objects["one"].Metadata.Id != meta.Id ||
-		db.objects["one"].Metadata.Revision != meta.Revision {
+	if db.store.(*inMemoryKv).objects["one"].Metadata.Id != meta.Id ||
+		db.store.(*inMemoryKv).objects["one"].Metadata.Revision != meta.Revision {
 		t.Fatalf("MetadataResponse invalid")
 	}
 
@@ -194,8 +194,8 @@ func TestCreateReplace(t *testing.T) {
 	if err != nil {
 		t.Fatal("replace with correct id didn't work")
 	}
-	if db.objects["one"].Metadata.Id != meta.Id ||
-		db.objects["one"].Metadata.Revision != meta.Revision {
+	if db.store.(*inMemoryKv).objects["one"].Metadata.Id != meta.Id ||
+		db.store.(*inMemoryKv).objects["one"].Metadata.Revision != meta.Revision {
 		t.Fatalf("MetadataResponse invalid")
 	}
 
@@ -216,10 +216,10 @@ func TestCreateReplace(t *testing.T) {
 		t.Fatalf("%#v", err)
 	}
 
-	if len(db.objects) != 1 {
+	if len(db.store.(*inMemoryKv).objects) != 1 {
 		t.Fatal("invalid objects in database")
 	}
-	object, exists := db.objects["one"]
+	object, exists := db.store.(*inMemoryKv).objects["one"]
 	if !exists {
 		t.Fatal("object not in database")
 	}
@@ -286,7 +286,7 @@ func TestUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%#v", err)
 	}
-	previous, exists := db.objects["one"]
+	previous, exists := db.store.(*inMemoryKv).objects["one"]
 	if !exists {
 		t.Fatal("object not in database")
 	}
@@ -377,8 +377,8 @@ func TestUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal("update with correct id and revision didn't work")
 	}
-	if db.objects["one"].Metadata.Id != meta.Id ||
-		db.objects["one"].Metadata.Revision != meta.Revision {
+	if db.store.(*inMemoryKv).objects["one"].Metadata.Id != meta.Id ||
+		db.store.(*inMemoryKv).objects["one"].Metadata.Revision != meta.Revision {
 		t.Fatalf("MetadataResponse invalid")
 	}
 
@@ -398,8 +398,8 @@ func TestUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal("update with correct id didn't work")
 	}
-	if db.objects["one"].Metadata.Id != meta.Id ||
-		db.objects["one"].Metadata.Revision != meta.Revision {
+	if db.store.(*inMemoryKv).objects["one"].Metadata.Id != meta.Id ||
+		db.store.(*inMemoryKv).objects["one"].Metadata.Revision != meta.Revision {
 		t.Fatalf("MetadataResponse invalid")
 	}
 
@@ -418,8 +418,8 @@ func TestUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal("update with no comparison didn't work")
 	}
-	if db.objects["one"].Metadata.Id != meta.Id ||
-		db.objects["one"].Metadata.Revision != meta.Revision {
+	if db.store.(*inMemoryKv).objects["one"].Metadata.Id != meta.Id ||
+		db.store.(*inMemoryKv).objects["one"].Metadata.Revision != meta.Revision {
 		t.Fatalf("MetadataResponse invalid")
 	}
 
@@ -438,7 +438,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	getDb := func() *InMemoryDatabase {
+	getDb := func() *KvDatabase {
 		db := NewInMemoryDatabase()
 		var _ Database = db
 
@@ -460,7 +460,7 @@ func TestDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%#v", err)
 		}
-		_, exists := db.objects["one"]
+		_, exists := db.store.(*inMemoryKv).objects["one"]
 		if !exists {
 			t.Fatal("object not in database")
 		}
@@ -516,14 +516,14 @@ func TestDelete(t *testing.T) {
 
 	// Delete with id
 	db = getDb()
-	meta, err = db.Delete("one", db.objects["one"].Metadata.Id, "")
+	meta, err = db.Delete("one", db.store.(*inMemoryKv).objects["one"].Metadata.Id, "")
 	if err != nil {
 		t.Fatal("delete with id didn't work")
 	}
 
 	// Delete with revision but no id
 	db = getDb()
-	meta, err = db.Delete("one", "", db.objects["one"].Metadata.Revision)
+	meta, err = db.Delete("one", "", db.store.(*inMemoryKv).objects["one"].Metadata.Revision)
 	if err == nil || err.Error() != "Cannot delete with a previous revision but no previous id" {
 		t.Fatal("delete with revision but no id didn't fail")
 	}
@@ -533,7 +533,7 @@ func TestDelete(t *testing.T) {
 
 	// Delete with wrong revision
 	db = getDb()
-	meta, err = db.Delete("one", db.objects["one"].Metadata.Id, "4567")
+	meta, err = db.Delete("one", db.store.(*inMemoryKv).objects["one"].Metadata.Id, "4567")
 	if err == nil {
 		t.Fatal("delete with wrong revision didn't fail")
 	}
@@ -546,7 +546,7 @@ func TestDelete(t *testing.T) {
 
 	// Delete with revision
 	db = getDb()
-	meta, err = db.Delete("one", db.objects["one"].Metadata.Id, db.objects["one"].Metadata.Revision)
+	meta, err = db.Delete("one", db.store.(*inMemoryKv).objects["one"].Metadata.Id, db.store.(*inMemoryKv).objects["one"].Metadata.Revision)
 	if err != nil {
 		t.Fatal("delete with revision didn't work")
 	}
