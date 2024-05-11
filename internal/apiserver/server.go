@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/remram44/vogon/internal/database"
 	"github.com/remram44/vogon/internal/versioning"
@@ -52,6 +53,17 @@ func sendMessage(res http.ResponseWriter, status int, message string) {
 	err := encoder.Encode(JsonMessage{Message: message})
 	if err != nil {
 		log.Printf("Error sending JSON message: %v", err)
+	}
+}
+
+func boolParam(param string) (bool, error) {
+	switch strings.ToLower(param) {
+	case "1", "true", "yes":
+		return true, nil
+	case "0", "false", "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean")
 	}
 }
 
@@ -103,10 +115,21 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			log.Printf("GET %#v send: %v", name, err)
 		}
 	} else if req.Method == "PUT" {
+		create, err := boolParam(req.URL.Query().Get("create"))
+		if err != nil {
+			sendMessage(res, 400, fmt.Sprintf("invalid query parameter 'create'"))
+			return
+		}
+		replace, err := boolParam(req.URL.Query().Get("replace"))
+		if err != nil {
+			sendMessage(res, 400, fmt.Sprintf("invalid query parameter 'replace'"))
+			return
+		}
+
 		var object database.Object
 		decoder := json.NewDecoder(req.Body)
 		decoder.DisallowUnknownFields()
-		err := decoder.Decode(&object)
+		err = decoder.Decode(&object)
 		if err != nil {
 			sendMessage(res, 400, fmt.Sprintf("error reading input: %v", err))
 			return
@@ -115,45 +138,25 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			sendMessage(res, 400, "Mismatched name")
 			return
 		}
-		meta, err := s.db.Create(object, true)
+		var meta database.MetadataResponse
+		if create && replace {
+			meta, err = s.db.Create(object, true)
+		} else if create {
+			meta, err = s.db.Create(object, false)
+		} else if replace {
+			meta, err = s.db.Update(object)
+		} else {
+			sendMessage(res, 400, "Nothing to do if both create and replace are 0")
+			return
+		}
 		if err != nil {
 			sendMessage(res, 400, fmt.Sprintf("%v", err))
 			return
 		}
 		sendJson(res, 200, meta)
-	} else if req.Method == "POST" {
-		var object database.Object
-		decoder := json.NewDecoder(req.Body)
-		decoder.DisallowUnknownFields()
-		err := decoder.Decode(&object)
-		if err != nil {
-			sendMessage(res, 400, fmt.Sprintf("error reading input: %v", err))
-			return
-		}
-		if object.Metadata.Name != name {
-			sendMessage(res, 400, "Mismatched name")
-			return
-		}
-		meta, err := s.db.Update(object)
-		if err != nil {
-			status := 400
-			if err.(*database.DoesNotExist) != nil {
-				status = 404
-			}
-			sendMessage(res, status, fmt.Sprintf("%v", err))
-			return
-		}
-		sendJson(res, 200, meta)
 	} else if req.Method == "DELETE" {
-		query := req.URL.Query()
-		id := ""
-		if len(query["id"]) == 1 {
-			id = query["id"][0]
-		}
-		revision := ""
-		if len(query["revision"]) == 1 {
-			id = query["revision"][0]
-		}
+		id := req.URL.Query().Get("id")
+		revision := req.URL.Query().Get("revision")
 		meta, err := s.db.Delete(name, id, revision)
 		if err != nil {
 			status := 400

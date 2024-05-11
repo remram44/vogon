@@ -1,11 +1,15 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/remram44/vogon/internal/commands"
+	"github.com/remram44/vogon/internal/database"
 	"github.com/remram44/vogon/internal/versioning"
 )
 
@@ -39,13 +43,101 @@ func version(args []string) error {
 }
 
 func get(args []string) error {
-	// TODO
+	if len(args) != 2 {
+		return fmt.Errorf("Missing object name")
+	}
+
+	name := args[1]
+
+	client, err := GetClientFromEnv()
+	if err != nil {
+		return err
+	}
+
+	object, err := client.GetObject(name)
+	if err != nil {
+		return err
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	encoder.Encode(object)
+
 	return nil
 }
 
 func apply(args []string) error {
-	// TODO
-	return nil
+	create := true
+	replace := true
+	stripRevision := false
+	for _, opt := range args[1:] {
+		switch opt {
+		case "--if-not-exists":
+			if !create {
+				return fmt.Errorf("Incompatible options")
+			}
+			replace = false
+			stripRevision = true
+		case "--force-overwrite":
+			if !replace {
+				return fmt.Errorf("Incompatible options")
+			}
+			stripRevision = true
+		case "--no-create":
+			if !replace {
+				return fmt.Errorf("Incompatible options")
+			}
+			create = false
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown option: %v", opt)
+			os.Exit(2)
+		}
+	}
+
+	decoder := yaml.NewDecoder(os.Stdin)
+	decoder.KnownFields(true)
+	var object database.Object
+	err := decoder.Decode(&object)
+	if err != nil {
+		return err
+	}
+
+	valid := true
+	if object.Kind == "" {
+		fmt.Fprintf(os.Stderr, "Missing kind\n")
+		valid = false
+	}
+	if object.Metadata.Name == "" {
+		fmt.Fprintf(os.Stderr, "Missing name\n")
+		valid = false
+	}
+	if !valid {
+		return fmt.Errorf("object is not valid")
+	}
+
+	if stripRevision {
+		object.Metadata.Id = ""
+		object.Metadata.Revision = ""
+	}
+
+	var mode WriteMode
+	if create && replace {
+		mode = CreateOrReplace
+	} else if create {
+		mode = Create
+	} else if replace {
+		mode = Replace
+	} else {
+		return fmt.Errorf("Nothing to do")
+	}
+
+	client, err := GetClientFromEnv()
+	if err != nil {
+		return err
+	}
+
+	_, err = client.WriteObject(object, mode)
+	return err
 }
 
 func init() {
