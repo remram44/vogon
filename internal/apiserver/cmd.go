@@ -111,7 +111,7 @@ func PrintUsage(w io.Writer) {
 	)
 }
 
-func Run(args []string) {
+func Run(args []string) error {
 	if len(args) != 2 {
 		fmt.Fprintf(os.Stderr, "Missing config file\n")
 		os.Exit(2)
@@ -135,6 +135,8 @@ func Run(args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	return nil
 }
 
 func init() {

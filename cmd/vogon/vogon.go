@@ -30,5 +30,9 @@ func main() {
 		usage(1)
 	}
 
-	command.Run(os.Args[1:])
+	err := command.Run(os.Args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
 }

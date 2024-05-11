@@ -9,7 +9,7 @@ import (
 
 type Command struct {
 	PrintUsage func(w io.Writer)
-	Run        func(args []string)
+	Run        func(args []string) error
 }
 
 var registry = make(map[string]*Command)
