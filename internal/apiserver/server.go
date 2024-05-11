@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/remram44/vogon/internal/database"
+	"github.com/remram44/vogon/internal/versioning"
 )
 
 type ApiServer struct {
@@ -65,6 +66,15 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		} else {
 			res.WriteHeader(400)
 		}
+		return
+	}
+
+	if req.URL.Path == "/_version" && req.Method == "GET" {
+		sendJson(res, 200, struct {
+			Version string `json:"version"`
+		}{
+			Version: versioning.NameAndVersionString(),
+		})
 		return
 	}
 
