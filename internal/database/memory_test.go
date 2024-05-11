@@ -82,7 +82,7 @@ func TestCreateReplace(t *testing.T) {
 		t.Fatal("object not in database")
 	}
 
-	// Replace
+	// Replace with wrong ID
 	meta, err = db.Create(
 		Object{
 			Kind:    "example.org/Example",
@@ -90,7 +90,116 @@ func TestCreateReplace(t *testing.T) {
 			Metadata: ObjectMetadata{
 				Name:     "one",
 				Id:       "12345",
-				Revision: "67890",
+				Revision: "",
+			},
+			Spec:   struct{}{},
+			Status: struct{}{},
+		},
+		true,
+	)
+	if err == nil || err.(*Conflict) == nil {
+		t.Fatal("replace with wrong id didn't fail")
+	}
+	if meta.Id != "" || meta.Revision != "" {
+		t.Fatal("replace failed but MetadataResponse is set")
+	}
+
+	// Replace with wrong revision
+	meta, err = db.Create(
+		Object{
+			Kind:    "example.org/Example",
+			Version: "v1",
+			Metadata: ObjectMetadata{
+				Name:     "one",
+				Id:       previous.Metadata.Id,
+				Revision: "567890",
+			},
+			Spec:   struct{}{},
+			Status: struct{}{},
+		},
+		true,
+	)
+	if err == nil || err.(*Conflict) == nil {
+		t.Fatal("replace with wrong revision didn't fail")
+	}
+	if meta.Id != "" || meta.Revision != "" {
+		t.Fatal("replace failed but MetadataResponse is set")
+	}
+
+	// Replace with revision but no id
+	meta, err = db.Create(
+		Object{
+			Kind:    "example.org/Example",
+			Version: "v1",
+			Metadata: ObjectMetadata{
+				Name:     "one",
+				Id:       "",
+				Revision: previous.Metadata.Revision,
+			},
+			Spec:   struct{}{},
+			Status: struct{}{},
+		},
+		true,
+	)
+	if err == nil || err.Error() != "Cannot replace with a previous revision but no previous id" {
+		t.Fatal("replace with revision but no id didn't fail")
+	}
+	if meta.Id != "" || meta.Revision != "" {
+		t.Fatal("replace failed but MetadataResponse is set")
+	}
+
+	// Replace with id and revision
+	meta, err = db.Create(
+		Object{
+			Kind:    "example.org/Example",
+			Version: "v1",
+			Metadata: ObjectMetadata{
+				Name:     "one",
+				Id:       previous.Metadata.Id,
+				Revision: previous.Metadata.Revision,
+			},
+			Spec:   struct{}{},
+			Status: struct{}{},
+		},
+		true,
+	)
+	if err != nil {
+		t.Fatal("replace with correct id and revision didn't work")
+	}
+	if db.objects["one"].Metadata.Id != meta.Id ||
+		db.objects["one"].Metadata.Revision != meta.Revision {
+		t.Fatalf("MetadataResponse invalid")
+	}
+
+	// Replace with id
+	meta, err = db.Create(
+		Object{
+			Kind:    "example.org/Example",
+			Version: "v1",
+			Metadata: ObjectMetadata{
+				Name: "one",
+				Id:   previous.Metadata.Id,
+			},
+			Spec:   struct{}{},
+			Status: struct{}{},
+		},
+		true,
+	)
+	if err != nil {
+		t.Fatal("replace with correct id didn't work")
+	}
+	if db.objects["one"].Metadata.Id != meta.Id ||
+		db.objects["one"].Metadata.Revision != meta.Revision {
+		t.Fatalf("MetadataResponse invalid")
+	}
+
+	// Replace with no previous fields
+	meta, err = db.Create(
+		Object{
+			Kind:    "example.org/Example",
+			Version: "v1",
+			Metadata: ObjectMetadata{
+				Name: "one",
 			},
 			Spec:   struct{}{},
 			Status: struct{}{},

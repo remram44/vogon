@@ -31,6 +31,25 @@ func (db *InMemoryDatabase) Create(object Object, replace bool) (MetadataRespons
 				s: fmt.Sprintf("Object %s already exists, cannot create", object.Metadata.Name),
 			}
 		}
+		if object.Metadata.Id != "" {
+			if previous.Metadata.Id != object.Metadata.Id {
+				return MetadataResponse{}, &Conflict{
+					s: fmt.Sprintf("Object %s exists and does not have the expected id, cannot replace", object.Metadata.Name),
+				}
+			}
+		}
+
+		if object.Metadata.Revision != "" {
+			if object.Metadata.Id == "" {
+				return MetadataResponse{}, errors.New("Cannot replace with a previous revision but no previous id")
+			}
+			if previous.Metadata.Revision != object.Metadata.Revision {
+				return MetadataResponse{}, &Conflict{
+					s: fmt.Sprintf("Object %s exists and does not have the expected revision, cannot replace", object.Metadata.Name),
+				}
+			}
+		}
+
 		object.Metadata.CreationTime = previous.Metadata.CreationTime
 		object.Metadata.Id = previous.Metadata.Id
 		object.Metadata.Revision = RandomString()
