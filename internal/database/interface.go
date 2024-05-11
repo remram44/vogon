@@ -52,12 +52,13 @@ type Database interface {
 	// Create an object
 	//
 	// If replace is false, returns an error if it exists.
+	// If replace is true and Id or Revision are not empty, returns an error if
+	// they don't match.
 	Create(object Object, replace bool) (MetadataResponse, error)
 
 	// Update an existing object
 	//
-	// If metadata.revision is not empty, returns an error if it doesn't
-	// match the revision on the server.
+	// If Id or Revision are not empty, returns an error if they don't match.
 	Update(object Object) (MetadataResponse, error)
 
 	// Get a single object by name
