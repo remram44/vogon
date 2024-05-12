@@ -4,13 +4,36 @@ import (
 	"testing"
 )
 
-type FakeSpec struct {
-	value string
+func fakeSpec(value string) interface{} {
+	result := make(map[string]interface{})
+	result["value"] = value
+	return result
+}
+
+func runWithAllDatabases(t *testing.T, testFunc func(func(*testing.T) *KvDatabase, *testing.T)) {
+	emptyInMemoryDb := func(t *testing.T) *KvDatabase {
+		return NewInMemoryDatabase()
+	}
+
+	emptyFilesDb := func(t *testing.T) *KvDatabase {
+		db, err := NewFilesDatabase(t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return db
+	}
+
+	t.Run("inmemory", func(t *testing.T) { testCreate(emptyInMemoryDb, t) })
+	t.Run("files", func(t *testing.T) { testCreate(emptyFilesDb, t) })
 }
 
 func TestCreate(t *testing.T) {
+	runWithAllDatabases(t, testCreate)
+}
+
+func testCreate(emptyDb func(t *testing.T) *KvDatabase, t *testing.T) {
 	for _, replace := range []bool{false, true} {
-		db := NewInMemoryDatabase()
+		db := emptyDb(t)
 		var _ Database = db
 
 		meta, err := db.Create(
@@ -22,7 +45,7 @@ func TestCreate(t *testing.T) {
 					Id:       "12345",
 					Revision: "67890",
 				},
-				Spec:   FakeSpec{value: "yay"},
+				Spec:   fakeSpec("yay"),
 				Status: struct{}{},
 			},
 			replace,
@@ -46,14 +69,18 @@ func TestCreate(t *testing.T) {
 			object.Metadata.Revision == "" {
 			t.Fatalf("object has invalid metadata: %#v", object.Metadata)
 		}
-		if object.Spec.(FakeSpec).value != "yay" {
+		if object.Spec.(map[string]interface{})["value"] != "yay" {
 			t.Fatal("object has invalid spec")
 		}
 	}
 }
 
 func TestCreateReplace(t *testing.T) {
-	db := NewInMemoryDatabase()
+	runWithAllDatabases(t, testCreateReplace)
+}
+
+func testCreateReplace(emptyDb func(t *testing.T) *KvDatabase, t *testing.T) {
+	db := emptyDb(t)
 	var _ Database = db
 
 	// Put in a first object, will be replaced
@@ -245,7 +272,11 @@ func TestCreateReplace(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	db := NewInMemoryDatabase()
+	runWithAllDatabases(t, testUpdate)
+}
+
+func testUpdate(emptyDb func(t *testing.T) *KvDatabase, t *testing.T) {
+	db := emptyDb(t)
 	var _ Database = db
 
 	// Update missing object
@@ -421,7 +452,7 @@ func TestUpdate(t *testing.T) {
 			Metadata: ObjectMetadata{
 				Name: "one",
 			},
-			Spec:   FakeSpec{value: "yay"},
+			Spec:   fakeSpec("yay"),
 			Status: struct{}{},
 		},
 	)
@@ -446,14 +477,18 @@ func TestUpdate(t *testing.T) {
 		object.Metadata.Revision == "" {
 		t.Fatalf("object has invalid metadata: %#v", object.Metadata)
 	}
-	if object.Spec.(FakeSpec).value != "yay" {
+	if object.Spec.(map[string]interface{})["value"] != "yay" {
 		t.Fatal("object has invalid spec")
 	}
 }
 
 func TestDelete(t *testing.T) {
+	runWithAllDatabases(t, testDelete)
+}
+
+func testDelete(emptyDb func(t *testing.T) *KvDatabase, t *testing.T) {
 	getDb := func() (*KvDatabase, MetadataResponse) {
-		db := NewInMemoryDatabase()
+		db := emptyDb(t)
 		var _ Database = db
 
 		// Put in a first object, will be deleted
@@ -483,7 +518,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	// Delete missing object
-	db := NewInMemoryDatabase()
+	db := emptyDb(t)
 	var _ Database = db
 
 	meta, err := db.Delete("one", "123456", "")
