@@ -3,11 +3,11 @@ package apiserver
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
 	"github.com/remram44/vogon/internal/commands"
@@ -52,7 +52,7 @@ type InMemoryDatabaseConfig struct {
 }
 
 func (*InMemoryDatabaseConfig) Connect() (database.Database, error) {
-	log.Print("open InMemoryDatabase")
+	log.Debug("open InMemoryDatabase")
 	return database.NewInMemoryDatabase(), nil
 }
 
@@ -64,7 +64,11 @@ type EtcdDatabaseConfig struct {
 }
 
 func (db *EtcdDatabaseConfig) Connect() (database.Database, error) {
-	log.Print("open EtcdDatabase")
+	if log.IsLevelEnabled(log.DebugLevel) {
+		var fields log.Fields
+		transmute("log fields", db, &fields)
+		log.WithFields(fields).Debug("open EtcdDatabase")
+	}
 	return nil, fmt.Errorf("Not implemented")
 }
 
@@ -119,7 +123,8 @@ func Run(args []string) error {
 
 	f, err := os.Open(args[1])
 	if err != nil {
-		log.Fatalf("opening config file: %v", err)
+		log.WithField("file", args[1]).
+			Fatalf("opening config file: %v", err)
 	}
 	defer f.Close()
 
@@ -128,7 +133,8 @@ func Run(args []string) error {
 	var config Config
 	err = decoder.Decode(&config)
 	if err != nil {
-		log.Fatalf("parsing config file: %v", err)
+		log.WithField("file", args[1]).
+			Fatalf("parsing config file: %v", err)
 	}
 
 	err = runServer(config)

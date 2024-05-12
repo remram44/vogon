@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/remram44/vogon/internal/database"
 	"github.com/remram44/vogon/internal/versioning"
@@ -50,7 +51,10 @@ type jsonMessage struct {
 
 func getError(response *http.Response) error {
 	contentType := response.Header.Get("Content-type")
-	log.Printf("error from server: status=%#v json=%v", response.Status, contentType == "application/json")
+	log.WithFields(log.Fields{
+		"status":          response.Status,
+		"contentTypeJson": contentType == "application/json",
+	}).Print("error from server")
 	if contentType == "application/json" {
 		decoder := json.NewDecoder(response.Body)
 		var result jsonMessage

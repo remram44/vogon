@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/remram44/vogon/internal/database"
 	"github.com/remram44/vogon/internal/versioning"
@@ -68,7 +69,11 @@ func boolParam(param string) (bool, error) {
 }
 
 func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	log.Printf("%s %s %s", req.RemoteAddr, req.Method, req.URL.Path)
+	log.WithFields(log.Fields{
+		"remote_addr": req.RemoteAddr,
+		"method":      req.Method,
+		"path":        req.URL.Path,
+	}).Print("request")
 
 	if req.URL.Path == "/" {
 		if req.Method == "GET" {
@@ -105,14 +110,14 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			log.Printf("GET %#v: %v", name, err)
+			log.WithField("name", name).Printf("GET: %v", err)
 			sendMessage(res, 500, "error")
 			return
 		}
 
 		err = sendJson(res, 200, object)
 		if err != nil {
-			log.Printf("GET %#v send: %v", name, err)
+			log.WithField("name", name).Printf("GET send: %v", err)
 		}
 	} else if req.Method == "PUT" {
 		create, err := boolParam(req.URL.Query().Get("create"))

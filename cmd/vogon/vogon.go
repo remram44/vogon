@@ -4,12 +4,25 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
+
 	_ "github.com/remram44/vogon/internal/apiserver"
 	_ "github.com/remram44/vogon/internal/client"
 	"github.com/remram44/vogon/internal/commands"
 )
 
 func main() {
+	logLevelStr := os.Getenv("VOGON_LOG_LEVEL")
+	if logLevelStr != "" {
+		logLevel, err := log.ParseLevel(logLevelStr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid log level, check $VOGON_LOG_LEVEL\n")
+			os.Exit(1)
+		}
+		log.SetLevel(logLevel)
+		log.Infof("Set log level to %v", logLevel)
+	}
+
 	usage := func(code int) {
 		commands.PrintUsage(os.Stderr)
 		os.Exit(code)
