@@ -100,7 +100,7 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
 		object, err := s.db.Get(name)
 		if err != nil {
-			if err.(*database.DoesNotExist) != nil {
+			if _, ok := err.(*database.DoesNotExist); ok {
 				sendMessage(res, 404, "No such object")
 				return
 			}
@@ -160,7 +160,7 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		meta, err := s.db.Delete(name, id, revision)
 		if err != nil {
 			status := 400
-			if err.(*database.DoesNotExist) != nil {
+			if _, ok := err.(*database.DoesNotExist); ok {
 				status = 404
 			}
 			sendMessage(res, status, fmt.Sprintf("%v", err))

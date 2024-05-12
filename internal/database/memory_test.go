@@ -97,7 +97,10 @@ func TestCreateReplace(t *testing.T) {
 		},
 		true,
 	)
-	if err == nil || err.(*Conflict) == nil {
+	if err == nil {
+		t.Fatal("replace with wrong id didn't fail")
+	}
+	if _, ok := err.(*Conflict); !ok {
 		t.Fatal("replace with wrong id didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
@@ -119,7 +122,10 @@ func TestCreateReplace(t *testing.T) {
 		},
 		true,
 	)
-	if err == nil || err.(*Conflict) == nil {
+	if err == nil {
+		t.Fatal("replace with wrong revision didn't fail")
+	}
+	if _, ok := err.(*Conflict); !ok {
 		t.Fatal("replace with wrong revision didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
@@ -252,8 +258,11 @@ func TestUpdate(t *testing.T) {
 			Status: struct{}{},
 		},
 	)
-	if err == nil || err.(*DoesNotExist) == nil {
-		t.Fatal("update didn't raise DoesNotExist")
+	if err == nil {
+		t.Fatal("update missing object didn't fail")
+	}
+	if _, ok := err.(*DoesNotExist); !ok {
+		t.Fatal("update missing object didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
 		t.Fatal("update failed but MetadataResponse is set")
@@ -296,7 +305,10 @@ func TestUpdate(t *testing.T) {
 			Status: struct{}{},
 		},
 	)
-	if err == nil || err.(*Conflict) == nil {
+	if err == nil {
+		t.Fatal("update with wrong id didn't fail")
+	}
+	if _, ok := err.(*Conflict); !ok {
 		t.Fatal("update with wrong id didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
@@ -317,7 +329,10 @@ func TestUpdate(t *testing.T) {
 			Status: struct{}{},
 		},
 	)
-	if err == nil || err.(*Conflict) == nil {
+	if err == nil {
+		t.Fatal("update with wrong revision didn't fail")
+	}
+	if _, ok := err.(*Conflict); !ok {
 		t.Fatal("update with wrong revision didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
@@ -458,19 +473,25 @@ func TestDelete(t *testing.T) {
 	var _ Database = db
 
 	meta, err := db.Delete("one", "123456", "")
-	if err == nil || err.(*DoesNotExist) == nil {
-		t.Fatal("delete didn't raise DoesNotExist")
+	if err == nil {
+		t.Fatal("delete didn't fail")
+	}
+	if _, ok := err.(*DoesNotExist); !ok {
+		t.Fatal("delete didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
-		t.Fatal("update failed but MetadataResponse is set")
+		t.Fatal("delete failed but MetadataResponse is set")
 	}
 
 	meta, err = db.Delete("one", "", "")
-	if err == nil || err.(*DoesNotExist) == nil {
-		t.Fatal("delete didn't raise DoesNotExist")
+	if err == nil {
+		t.Fatal("delete didn't fail")
+	}
+	if _, ok := err.(*DoesNotExist); !ok {
+		t.Fatal("delete didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
-		t.Fatal("update failed but MetadataResponse is set")
+		t.Fatal("delete failed but MetadataResponse is set")
 	}
 
 	// Delete by name
@@ -483,11 +504,14 @@ func TestDelete(t *testing.T) {
 	// Delete with wrong id
 	db = getDb()
 	meta, err = db.Delete("one", "12345", "")
-	if err == nil || err.(*Conflict) == nil {
+	if err == nil {
+		t.Fatal("delete with wrong id didn't fail")
+	}
+	if _, ok := err.(*Conflict); !ok {
 		t.Fatal("delete with wrong id didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
-		t.Fatal("update failed but MetadataResponse is set")
+		t.Fatal("delete failed but MetadataResponse is set")
 	}
 
 	// Delete with id
@@ -504,23 +528,26 @@ func TestDelete(t *testing.T) {
 		t.Fatal("delete with revision but no id didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
-		t.Fatal("update failed but MetadataResponse is set")
+		t.Fatal("delete failed but MetadataResponse is set")
 	}
 
 	// Delete with wrong revision
 	db = getDb()
 	meta, err = db.Delete("one", db.objects["one"].Metadata.Id, "4567")
-	if err == nil || err.(*Conflict) == nil {
-		t.Fatal("delete with wrong id didn't fail")
+	if err == nil {
+		t.Fatal("delete with wrong revision didn't fail")
+	}
+	if _, ok := err.(*Conflict); !ok {
+		t.Fatal("delete with wrong revision didn't fail")
 	}
 	if meta.Id != "" || meta.Revision != "" {
-		t.Fatal("update failed but MetadataResponse is set")
+		t.Fatal("delete failed but MetadataResponse is set")
 	}
 
 	// Delete with revision
 	db = getDb()
 	meta, err = db.Delete("one", db.objects["one"].Metadata.Id, db.objects["one"].Metadata.Revision)
 	if err != nil {
-		t.Fatal("delete with id didn't work")
+		t.Fatal("delete with revision didn't work")
 	}
 }
