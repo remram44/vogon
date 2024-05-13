@@ -56,6 +56,21 @@ func (*InMemoryDatabaseConfig) Connect() (database.Database, error) {
 	return database.NewInMemoryDatabase(), nil
 }
 
+type FilesDatabaseConfig struct {
+	Directory string `yaml:"directory"`
+}
+
+func (db *FilesDatabaseConfig) Connect() (database.Database, error) {
+	slog.Debug("open FilesDatabase", "config", db)
+	return database.NewFilesDatabase(db.Directory)
+}
+
+func (db *FilesDatabaseConfig) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("directory", db.Directory),
+	)
+}
+
 type EtcdDatabaseConfig struct {
 	Hostname   string `yaml:"hostname"`
 	CaCert     string `yaml:"ca_cert"`
@@ -96,6 +111,12 @@ func (db *DatabaseConfigWrapper) UnmarshalYAML(value *yaml.Node) error {
 	case "in_memory":
 		var finalValue InMemoryDatabaseConfig
 		if err := transmute("InMemoryDatabaseConfig", raw, &finalValue); err != nil {
+			return err
+		}
+		db.DatabaseConfig = &finalValue
+	case "files":
+		var finalValue FilesDatabaseConfig
+		if err := transmute("FilesDatabaseConfig", raw, &finalValue); err != nil {
 			return err
 		}
 		db.DatabaseConfig = &finalValue
