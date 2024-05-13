@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/remram44/vogon/internal/database"
 	"github.com/remram44/vogon/internal/versioning"
@@ -21,7 +21,8 @@ type ApiServer struct {
 func runServer(config Config) error {
 	db, err := config.Database.Connect()
 	if err != nil {
-		log.Fatalf("connecting to database: %v", err)
+		slog.Error("error connecting to database", "error", err)
+		os.Exit(1)
 	}
 
 	apiServer := ApiServer{
@@ -53,7 +54,7 @@ func sendMessage(res http.ResponseWriter, status int, message string) {
 	encoder := json.NewEncoder(res)
 	err := encoder.Encode(JsonMessage{Message: message})
 	if err != nil {
-		log.Printf("Error sending JSON message: %v", err)
+		slog.Info("Error sending JSON message", "error", err)
 	}
 }
 
@@ -69,11 +70,12 @@ func boolParam(param string) (bool, error) {
 }
 
 func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	log.WithFields(log.Fields{
-		"remote_addr": req.RemoteAddr,
-		"method":      req.Method,
-		"path":        req.URL.Path,
-	}).Print("request")
+	slog.Info(
+		"request",
+		"remote_addr", req.RemoteAddr,
+		"method", req.Method,
+		"path", req.URL.Path,
+	)
 
 	if req.URL.Path == "/" {
 		if req.Method == "GET" {
@@ -110,14 +112,14 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 				return
 			}
 
-			log.WithField("name", name).Printf("GET: %v", err)
+			slog.Error("GET error", "name", name, "error", err)
 			sendMessage(res, 500, "error")
 			return
 		}
 
 		err = sendJson(res, 200, object)
 		if err != nil {
-			log.WithField("name", name).Printf("GET send: %v", err)
+			slog.Info("GET send error", "name", name, "error", err)
 		}
 	} else if req.Method == "PUT" {
 		create, err := boolParam(req.URL.Query().Get("create"))
@@ -155,10 +157,14 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 		if err != nil {
+			slog.Error("PUT error", "name", name, "error", err)
 			sendMessage(res, 400, fmt.Sprintf("%v", err))
 			return
 		}
-		sendJson(res, 200, meta)
+		err = sendJson(res, 200, meta)
+		if err != nil {
+			slog.Info("PUT send error", "name", name, "error", err)
+		}
 	} else if req.Method == "DELETE" {
 		id := req.URL.Query().Get("id")
 		revision := req.URL.Query().Get("revision")
@@ -167,10 +173,15 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			status := 400
 			if _, ok := err.(*database.DoesNotExist); ok {
 				status = 404
+			} else {
+				slog.Error("DELETE error", "name", name, "error", err)
 			}
 			sendMessage(res, status, fmt.Sprintf("%v", err))
 			return
 		}
-		sendJson(res, 200, meta)
+		err = sendJson(res, 200, meta)
+		if err != nil {
+			slog.Info("DELETE send error", "name", name, "error", err)
+		}
 	}
 }

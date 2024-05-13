@@ -3,11 +3,11 @@ package apiserver
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
 	"github.com/remram44/vogon/internal/commands"
@@ -52,7 +52,7 @@ type InMemoryDatabaseConfig struct {
 }
 
 func (*InMemoryDatabaseConfig) Connect() (database.Database, error) {
-	log.Debug("open InMemoryDatabase")
+	slog.Debug("open InMemoryDatabase")
 	return database.NewInMemoryDatabase(), nil
 }
 
@@ -64,12 +64,17 @@ type EtcdDatabaseConfig struct {
 }
 
 func (db *EtcdDatabaseConfig) Connect() (database.Database, error) {
-	if log.IsLevelEnabled(log.DebugLevel) {
-		var fields log.Fields
-		transmute("log fields", db, &fields)
-		log.WithFields(fields).Debug("open EtcdDatabase")
-	}
+	slog.Debug("open EtcdDatabase", "config", db)
 	return nil, fmt.Errorf("Not implemented")
+}
+
+func (db *EtcdDatabaseConfig) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("hostname", db.Hostname),
+		slog.String("ca_cert", db.CaCert),
+		slog.String("client_cert", db.ClientCert),
+		slog.String("client_key", db.ClientKey),
+	)
 }
 
 func (db *DatabaseConfigWrapper) UnmarshalYAML(value *yaml.Node) error {
@@ -123,8 +128,8 @@ func Run(args []string) error {
 
 	f, err := os.Open(args[1])
 	if err != nil {
-		log.WithField("file", args[1]).
-			Fatalf("opening config file: %v", err)
+		slog.Error("error opening config file", "file", args[1], "error", err)
+		os.Exit(1)
 	}
 	defer f.Close()
 
@@ -133,13 +138,14 @@ func Run(args []string) error {
 	var config Config
 	err = decoder.Decode(&config)
 	if err != nil {
-		log.WithField("file", args[1]).
-			Fatalf("parsing config file: %v", err)
+		slog.Error("error parsing config file", "file", args[1], "error", err)
+		os.Exit(1)
 	}
 
 	err = runServer(config)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("server shut down", "error", err)
+		os.Exit(1)
 	}
 
 	return nil

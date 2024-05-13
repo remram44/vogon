@@ -2,30 +2,38 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
-
-	log "github.com/sirupsen/logrus"
 
 	_ "github.com/remram44/vogon/internal/apiserver"
 	_ "github.com/remram44/vogon/internal/client"
 	"github.com/remram44/vogon/internal/commands"
+	"github.com/remram44/vogon/internal/versioning"
 )
 
 func main() {
-	if os.Getenv("VOGON_LOG_JSON") != "" {
-		log.SetFormatter(&log.JSONFormatter{})
-	}
+	logLevel := slog.LevelInfo
 
 	logLevelStr := os.Getenv("VOGON_LOG_LEVEL")
 	if logLevelStr != "" {
-		logLevel, err := log.ParseLevel(logLevelStr)
+		err := logLevel.UnmarshalText([]byte(logLevelStr))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Invalid log level, check $VOGON_LOG_LEVEL\n")
 			os.Exit(1)
 		}
-		log.SetLevel(logLevel)
-		log.Infof("Set log level to %v", logLevel)
 	}
+
+	logOpts := slog.HandlerOptions{
+		Level: logLevel,
+	}
+
+	if os.Getenv("VOGON_LOG_JSON") != "" {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &logOpts)))
+	} else {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &logOpts)))
+	}
+
+	slog.Debug("Starting vogon", "logLevel", logLevel, "version", versioning.Version)
 
 	usage := func(code int) {
 		commands.PrintUsage(os.Stderr)
