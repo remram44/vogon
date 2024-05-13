@@ -58,8 +58,10 @@ func sendMessage(res http.ResponseWriter, status int, message string) {
 	}
 }
 
-func boolParam(param string) (bool, error) {
+func boolParam(param string, defaultValue bool) (bool, error) {
 	switch strings.ToLower(param) {
+	case "":
+		return defaultValue, nil
 	case "1", "true", "yes":
 		return true, nil
 	case "0", "false", "no":
@@ -122,12 +124,12 @@ func (s *ApiServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			slog.Info("GET send error", "name", name, "error", err)
 		}
 	} else if req.Method == "PUT" {
-		create, err := boolParam(req.URL.Query().Get("create"))
+		create, err := boolParam(req.URL.Query().Get("create"), true)
 		if err != nil {
 			sendMessage(res, 400, fmt.Sprintf("invalid query parameter 'create'"))
 			return
 		}
-		replace, err := boolParam(req.URL.Query().Get("replace"))
+		replace, err := boolParam(req.URL.Query().Get("replace"), true)
 		if err != nil {
 			sendMessage(res, 400, fmt.Sprintf("invalid query parameter 'replace'"))
 			return
