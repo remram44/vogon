@@ -73,6 +73,10 @@ func (db *directoryKv) Delete(name string) error {
 }
 
 func NewFilesDatabase(directory string) (*KvDatabase, error) {
+	err := os.Mkdir(directory, 0700)
+	if err != nil && !os.IsExist(err) {
+		return nil, fmt.Errorf("Error creating database directory: %w", err)
+	}
 	lockFile, err := os.Create(path.Join(directory, "_lock"))
 	if err != nil {
 		return nil, fmt.Errorf("Error opening lock file: %w", err)
