@@ -12,6 +12,10 @@ import (
 )
 
 func main() {
+	if os.Getenv("VOGON_LOG_JSON") != "" {
+		log.SetFormatter(&log.JSONFormatter{})
+	}
+
 	logLevelStr := os.Getenv("VOGON_LOG_LEVEL")
 	if logLevelStr != "" {
 		logLevel, err := log.ParseLevel(logLevelStr)
